@@ -35,14 +35,6 @@ The system adopts a two-level architecture:
 
 **Training setup.** PPO with actor/critic MLPs (2 × 128); lr 3e-4, rollout length 2048, batch size 64, 10 update epochs per rollout, γ = 0.99, GAE λ = 0.95, clip range 0.2. Episodes start with the UAV at 2.0 m altitude and a random horizontal position within [-2, 2] m. Trained on a single NVIDIA RTX 5060 Ti.
 
-## 📊 Results
-
-**Prediction (test set).** The LSTM predictor accurately tracks the temporal evolution and peaks of roll and pitch over the 1.0 s horizon, and outperforms an Informer baseline in both RMSE and MAE:
-
-| Model | Pitch RMSE / MAE | Roll RMSE / MAE |
-|---|---|---|
-| Informer | see paper Tab. 1–2 | see paper Tab. 1–2 |
-| **LSTM (ours)** | **best** | **best** |
 
 **Policy behavior.** The vertical-velocity command consistently *leads* the USV attitude by several phases: when a large deck tilt is predicted, the policy reduces the descent rate, hovers, or briefly climbs *before* the unfavorable window opens — no manually designed state-switching rules are required. See the paper for full motion-segment analyses.
 
