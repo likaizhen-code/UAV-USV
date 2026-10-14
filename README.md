@@ -19,10 +19,6 @@ Autonomous landing of an unmanned aerial vehicle (UAV) on an unmanned surface ve
 
 ## 🛠️ Method
 
-<div align="center">
-  <img src="assets/framework.png" width="90%">
-  <p>Prediction-informed landing architecture.</p>
-</div>
 
 The system adopts a two-level architecture:
 
