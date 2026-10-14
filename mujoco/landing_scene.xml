@@ -1,0 +1,101 @@
+<mujoco model="quadrotor_moving_platform_landing">
+  <compiler angle="radian" coordinate="local" inertiafromgeom="true"/>
+  <option timestep="0.002" gravity="0 0 -9.81" integrator="RK4" cone="elliptic"/>
+  <visual>
+    <global offwidth="1280" offheight="720"/>
+  </visual>
+
+  <default>
+    <geom condim="4" friction="1.1 0.02 0.001" solref="0.008 1" solimp="0.95 0.99 0.001"/>
+    <joint damping="0.02"/>
+  </default>
+
+  <asset>
+    <texture name="grid" type="2d" builtin="checker" width="512" height="512"
+             rgb1="0.20 0.40 0.70" rgb2="0.35 0.60 0.90"/>
+    <material name="ground_grid" texture="grid" texrepeat="10 10" reflectance="0.15"/>
+    <material name="carbon" rgba="0.04 0.05 0.06 1"/>
+    <material name="rotor" rgba="0.08 0.10 0.13 0.55"/>
+    <material name="platform_green" rgba="0.05 0.45 0.31 1"/>
+    <material name="landing_mark" rgba="1.0 0.82 0.16 1"/>
+  </asset>
+
+  <worldbody>
+    <light name="ambient" pos="0 0 10" dir="0 0 -1" diffuse="0.7 0.7 0.8"/>
+    <light name="key" pos="0 -4 7" dir="0 0 -1" diffuse="1.0 1.0 1.0"/>
+    <light name="fill" pos="-4 3 5" dir="0 0 -1" diffuse="0.5 0.5 0.6"/>
+    <geom name="ground" type="plane" size="12 12 0.1" material="ground_grid"/>
+
+    <body name="platform" mocap="true" pos="0 0 0.06">
+      <geom name="platform_deck" type="box" size="0.8 0.8 0.06" material="platform_green"
+            mass="100" contype="1" conaffinity="1" friction="5.0 0.25 0.05"/>
+      <geom name="platform_marker_x" type="box" size="0.55 0.025 0.006" pos="0 0 0.067"
+            material="landing_mark" contype="0" conaffinity="0"/>
+      <geom name="platform_marker_y" type="box" size="0.025 0.55 0.006" pos="0 0 0.074"
+            material="landing_mark" contype="0" conaffinity="0"/>
+      <site name="landing_center" pos="0 0 0.09" size="0.04" rgba="1 0.9 0.1 1"/>
+    </body>
+
+    <body name="quadrotor" pos="0 0 3.0" quat="1 0 0 0">
+      <freejoint name="quad_free"/>
+      <inertial pos="0 0 0" mass="1.25" diaginertia="0.022 0.022 0.040"/>
+
+      <geom name="quad_body" type="box" size="0.16 0.12 0.045" material="carbon"
+            mass="0.75" contype="1" conaffinity="1"/>
+      <geom name="arm_fl" type="capsule" fromto="0.05 0.05 0 0.32 0.32 0.02" size="0.018"
+            material="carbon" mass="0.05" contype="0" conaffinity="0"/>
+      <geom name="arm_fr" type="capsule" fromto="0.05 -0.05 0 0.32 -0.32 0.02" size="0.018"
+            material="carbon" mass="0.05" contype="0" conaffinity="0"/>
+      <geom name="arm_rl" type="capsule" fromto="-0.05 0.05 0 -0.32 0.32 0.02" size="0.018"
+            material="carbon" mass="0.05" contype="0" conaffinity="0"/>
+      <geom name="arm_rr" type="capsule" fromto="-0.05 -0.05 0 -0.32 -0.32 0.02" size="0.018"
+            material="carbon" mass="0.05" contype="0" conaffinity="0"/>
+
+      <geom name="rotor_fl" type="cylinder" pos="0.32 0.32 0.02" size="0.13 0.006"
+            material="rotor" mass="0.025" contype="0" conaffinity="0"/>
+      <geom name="rotor_fr" type="cylinder" pos="0.32 -0.32 0.02" size="0.13 0.006"
+            material="rotor" mass="0.025" contype="0" conaffinity="0"/>
+      <geom name="rotor_rl" type="cylinder" pos="-0.32 0.32 0.02" size="0.13 0.006"
+            material="rotor" mass="0.025" contype="0" conaffinity="0"/>
+      <geom name="rotor_rr" type="cylinder" pos="-0.32 -0.32 0.02" size="0.13 0.006"
+            material="rotor" mass="0.025" contype="0" conaffinity="0"/>
+
+      <site name="motor_fl" pos="0.32 0.32 0.02" size="0.025" rgba="0.2 0.6 1 1"/>
+      <site name="motor_fr" pos="0.32 -0.32 0.02" size="0.025" rgba="0.2 0.6 1 1"/>
+      <site name="motor_rl" pos="-0.32 0.32 0.02" size="0.025" rgba="0.2 0.6 1 1"/>
+      <site name="motor_rr" pos="-0.32 -0.32 0.02" size="0.025" rgba="0.2 0.6 1 1"/>
+
+      <geom name="leg_fl" type="capsule" fromto="0.18 0.18 -0.03 0.29 0.29 -0.36"
+            size="0.014" mass="0.03" contype="1" conaffinity="1"/>
+      <geom name="leg_fr" type="capsule" fromto="0.18 -0.18 -0.03 0.29 -0.29 -0.36"
+            size="0.014" mass="0.03" contype="1" conaffinity="1"/>
+      <geom name="leg_rl" type="capsule" fromto="-0.18 0.18 -0.03 -0.29 0.29 -0.36"
+            size="0.014" mass="0.03" contype="1" conaffinity="1"/>
+      <geom name="leg_rr" type="capsule" fromto="-0.18 -0.18 -0.03 -0.29 -0.29 -0.36"
+            size="0.014" mass="0.03" contype="1" conaffinity="1"/>
+      <geom name="foot_fl" type="box" pos="0.29 0.29 -0.36" size="0.06 0.06 0.012"
+            mass="0.015" contype="1" conaffinity="1" friction="5.5 0.30 0.08"/>
+      <geom name="foot_fr" type="box" pos="0.29 -0.29 -0.36" size="0.06 0.06 0.012"
+            mass="0.015" contype="1" conaffinity="1" friction="5.5 0.30 0.08"/>
+      <geom name="foot_rl" type="box" pos="-0.29 0.29 -0.36" size="0.06 0.06 0.012"
+            mass="0.015" contype="1" conaffinity="1" friction="5.5 0.30 0.08"/>
+      <geom name="foot_rr" type="box" pos="-0.29 -0.29 -0.36" size="0.06 0.06 0.012"
+            mass="0.015" contype="1" conaffinity="1" friction="5.5 0.30 0.08"/>
+      <geom name="skid_left" type="box" pos="0 0.29 -0.385" size="0.36 0.035 0.014"
+            mass="0.04" contype="1" conaffinity="1" friction="6.0 0.35 0.10"/>
+      <geom name="skid_right" type="box" pos="0 -0.29 -0.385" size="0.36 0.035 0.014"
+            mass="0.04" contype="1" conaffinity="1" friction="6.0 0.35 0.10"/>
+      <site name="downward_camera_mount" pos="0 0 -0.08" size="0.025" rgba="1 0.8 0.1 1"/>
+      <camera name="downward" mode="fixed" pos="0 0 -0.08" fovy="85"/>
+      <camera name="tracking" mode="trackcom" pos="-4 -5 3" xyaxes="0.78 -0.63 0 0.28 0.35 0.89"/>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <!-- Quadrotor motor thrusters: apply vertical thrust at motor sites -->
+    <motor name="motor_fl" site="motor_fl" gear="0 0 1 0 0 0" ctrlrange="0 13.0" forcelimited="true" forcerange="0 13.0"/>
+    <motor name="motor_fr" site="motor_fr" gear="0 0 1 0 0 0" ctrlrange="0 13.0" forcelimited="true" forcerange="0 13.0"/>
+    <motor name="motor_rl" site="motor_rl" gear="0 0 1 0 0 0" ctrlrange="0 13.0" forcelimited="true" forcerange="0 13.0"/>
+    <motor name="motor_rr" site="motor_rr" gear="0 0 1 0 0 0" ctrlrange="0 13.0" forcelimited="true" forcerange="0 13.0"/>
+  </actuator>
+</mujoco>

@@ -1,0 +1,175 @@
+<mujoco model="x2_landing_offshore">
+  <!-- Offshore-vessel (OSV / tug) landing scenario: the SAME validated Skydio X2 + gear + gimbal camera
+       + rangefinder recovering onto the helideck of an orange offshore support vessel that moves with
+       full 6-DOF seakeeping motion. PHYSICS-EQUIVALENT to x2_landing_ship.xml on purpose: the collision
+       helideck, ArUco pad, joints, servos, mass/inertia and drone are identical, so the validated
+       landing behaviour is preserved; only the *visual* hull/bow/wheelhouse are added (orange OSV look).
+       A compact invisible 60 kg "ballast" carries the body's mass/inertia (= the validated chassis), so
+       the long orange hull stays light and the deck's seakeeping dynamics match the validated ship. The
+       drone-deck contact is TRUE physics (no cheats); see docs/REALISM_CHARTER.md. -->
+  <compiler autolimits="true" assetdir="../meshes/skydio_x2"/>
+  <option timestep="0.002" density="1.225" viscosity="1.8e-5" integrator="implicitfast"/>
+  <visual>
+    <global offwidth="1280" offheight="720"/>
+  </visual>
+
+  <default>
+    <default class="x2">
+      <geom mass="0"/>
+      <motor ctrlrange="0 13"/>
+      <mesh scale="0.01 0.01 0.01"/>
+      <default class="visual">
+        <geom group="2" type="mesh" contype="0" conaffinity="0"/>
+      </default>
+      <default class="collision">
+        <geom group="3" type="box"/>
+        <default class="rotor">
+          <geom type="ellipsoid" size=".13 .13 .01"/>
+        </default>
+      </default>
+      <site group="5"/>
+    </default>
+    <default class="leg">
+      <geom type="capsule" size="0.006" mass="0.008" rgba="0.05 0.05 0.05 1"
+            contype="1" conaffinity="1" condim="4" friction="1.2 0.05 0.001"
+            solref="0.02 1.5" solimp="0.95 0.99 0.001"/>
+    </default>
+    <default class="foot">
+      <geom type="sphere" size="0.013" mass="0.004" rgba="0.05 0.05 0.05 1"
+            contype="1" conaffinity="1" condim="4" friction="3.0 0.15 0.003"
+            solref="0.025 1.8" solimp="0.96 0.99 0.001"/>
+    </default>
+  </default>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.45 0.6 0.78" rgb2="0.05 0.1 0.2" width="512" height="3072"/>
+    <texture type="2d" name="sea" builtin="checker" mark="none" rgb1="0.08 0.18 0.30"
+             rgb2="0.05 0.12 0.22" width="300" height="300"/>
+    <material name="sea" texture="sea" texuniform="true" texrepeat="8 8" reflectance="0.35"/>
+    <texture type="2d" file="X2_lowpoly_texture_SpinningProps_1024.png"/>
+    <material name="phong3SG" texture="X2_lowpoly_texture_SpinningProps_1024"/>
+    <material name="invisible" rgba="0 0 0 0"/>
+    <mesh class="x2" file="X2_lowpoly.obj"/>
+    <texture name="aruco_deck" type="2d" file="../../textures/aruco_deck.png"/>
+    <material name="deck_aruco" texture="aruco_deck" texuniform="false" texrepeat="1 1"/>
+    <!-- OSV palette -->
+    <material name="osv_orange" rgba="0.93 0.42 0.06 1" reflectance="0.1"/>
+    <material name="osv_white" rgba="0.88 0.89 0.90 1"/>
+    <material name="osv_dark" rgba="0.10 0.12 0.16 1"/>
+    <material name="osv_deck" rgba="0.30 0.33 0.31 1"/>
+  </asset>
+
+  <worldbody>
+    <light pos="0 0 4" dir="0 0 -1" directional="true" diffuse="0.8 0.8 0.8"
+           ambient="0.4 0.4 0.4" castshadow="false"/>
+    <light pos="2 -2 3" dir="-0.5 0.5 -1" diffuse="0.3 0.3 0.3" castshadow="false"/>
+    <geom name="floor" size="0 0 0.05" type="plane" material="sea"/>
+
+    <!-- Offshore support vessel: a dynamic body on six servo'd seakeeping joints, exactly like the ship
+         deck. The compact invisible "ballast" geom carries the 60 kg mass/inertia (= validated chassis),
+         so the deck dynamics match; the orange hull/bow/wheelhouse are LIGHT visual geoms only. -->
+    <body name="platform" pos="0 0 0" gravcomp="1">
+      <joint name="plat_x" type="slide" axis="1 0 0" damping="2000"/>
+      <joint name="plat_y" type="slide" axis="0 1 0" damping="2000"/>
+      <joint name="plat_z" type="slide" axis="0 0 1" damping="2000"/>
+      <joint name="plat_yaw" type="hinge" axis="0 0 1" damping="400"/>
+      <joint name="plat_pitch" type="hinge" axis="0 1 0" damping="400"/>
+      <joint name="plat_roll" type="hinge" axis="1 0 0" damping="400"/>
+
+      <!-- mass/inertia ballast (invisible, compact = validated chassis) -->
+      <geom name="ballast" type="box" size="0.9 0.9 0.125" pos="0 0 0.125" mass="60"
+            material="invisible" contype="0" conaffinity="0"/>
+      <!-- orange OSV hull + raised bow (light visual; extends fore of the helideck) -->
+      <geom name="hull" type="box" size="1.7 0.95 0.13" pos="0.55 0 0.135" mass="1.0"
+            material="osv_orange" contype="0" conaffinity="0"/>
+      <geom name="hull_belt" type="box" size="1.72 0.97 0.03" pos="0.55 0 0.245" mass="0.2"
+            material="osv_dark" contype="0" conaffinity="0"/>
+      <!-- bow: COLLIDABLE superstructure (P3) so sense-and-avoid acts against true contact, not a ghost -->
+      <geom name="bow" type="box" size="0.32 0.6 0.12" pos="2.1 0 0.235" mass="0.3"
+            material="osv_orange" contype="1" conaffinity="1" condim="3"/>
+
+      <!-- helideck: the landing surface (collision). IDENTICAL to the validated ship deck (1.8 m, mass 5,
+           same friction/solref) so landing behaviour is unchanged. world.py keys touchdown on "deck". -->
+      <geom name="deck" type="box" size="0.9 0.9 0.025" pos="0 0 0.275" mass="5"
+            material="osv_deck" contype="1" conaffinity="1" condim="4" friction="3.0 0.1 0.002"
+            solref="0.02 1.5" solimp="0.96 0.99 0.001"/>
+      <geom name="fiducial" type="box" size="0.5 0.5 0.001" pos="0 0 0.301"
+            material="deck_aruco" contype="0" conaffinity="0"/>
+      <site name="deck_center" pos="0 0 0.303" size="0.02" rgba="1 0.85 0.1 1" group="4"/>
+
+      <!-- wheelhouse + mast fore of the helideck (off the landing area, never block the nadir camera/pad).
+           COLLIDABLE (P3): solid keep-out volumes so a stray approach physically hits them (a real crash),
+           giving the --avoid sense-and-avoid guard genuine teeth. windows stays visual (inside wheelhouse). -->
+      <geom name="wheelhouse_base" type="box" size="0.5 0.62 0.03" pos="1.5 0 0.30" mass="0.3"
+            material="osv_orange" contype="1" conaffinity="1" condim="3"/>
+      <geom name="wheelhouse" type="box" size="0.45 0.55 0.30" pos="1.5 0 0.62" mass="0.5"
+            material="osv_white" contype="1" conaffinity="1" condim="3"/>
+      <geom name="windows" type="box" size="0.38 0.56 0.08" pos="1.5 0 0.66" mass="0.05"
+            material="osv_dark" contype="0" conaffinity="0"/>
+      <geom name="mast" type="cylinder" size="0.02 0.28" pos="1.5 0 1.1" mass="0.05"
+            material="osv_dark" contype="1" conaffinity="1" condim="3"/>
+    </body>
+
+    <body name="gimbal" mocap="true" pos="0 0 0.91">
+      <camera name="down" pos="0 0 0" fovy="90" mode="fixed"/>
+    </body>
+
+    <body name="x2" pos="0 0 1.0" childclass="x2">
+      <freejoint name="root"/>
+      <camera name="track" pos="-1 0 .5" xyaxes="0 -1 0 1 0 2" mode="trackcom"/>
+      <site name="imu" pos="0 0 .02"/>
+      <site name="rangefinder" pos="0 0 -.03" quat="0 1 0 0" size="0.005" group="5"/>
+
+      <geom material="phong3SG" mesh="X2_lowpoly" class="visual" quat="0 0 1 1"/>
+      <geom class="collision" size=".06 .027 .02" pos=".04 0 .02"/>
+      <geom class="collision" size=".06 .027 .02" pos=".04 0 .06"/>
+      <geom class="collision" size=".05 .027 .02" pos="-.07 0 .065"/>
+      <geom class="collision" size=".023 .017 .01" pos="-.137 .008 .065" quat="1 0 0 1"/>
+
+      <geom name="rotor1" class="rotor" pos="-.14 -.18 .05" mass=".25"/>
+      <geom name="rotor2" class="rotor" pos="-.14 .18 .05" mass=".25"/>
+      <geom name="rotor3" class="rotor" pos=".14 .18 .08" mass=".25"/>
+      <geom name="rotor4" class="rotor" pos=".14 -.18 .08" mass=".25"/>
+      <geom size=".16 .04 .02" pos="0 0 0.02" type="ellipsoid" mass=".325" class="visual" material="invisible"/>
+
+      <site name="thrust1" pos="-.14 -.18 .05"/>
+      <site name="thrust2" pos="-.14 .18 .05"/>
+      <site name="thrust3" pos=".14 .18 .08"/>
+      <site name="thrust4" pos=".14 -.18 .08"/>
+
+      <geom class="leg" name="leg_fl" fromto=".06 .06 -.01 .10 .12 -.13"/>
+      <geom class="leg" name="leg_fr" fromto=".06 -.06 -.01 .10 -.12 -.13"/>
+      <geom class="leg" name="leg_rl" fromto="-.06 .06 -.01 -.10 .12 -.13"/>
+      <geom class="leg" name="leg_rr" fromto="-.06 -.06 -.01 -.10 -.12 -.13"/>
+      <geom class="foot" name="foot_fl" pos=".10 .12 -.13"/>
+      <geom class="foot" name="foot_fr" pos=".10 -.12 -.13"/>
+      <geom class="foot" name="foot_rl" pos="-.10 .12 -.13"/>
+      <geom class="foot" name="foot_rr" pos="-.10 -.12 -.13"/>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <motor class="x2" name="thrust1" site="thrust1" gear="0 0 1 0 0  .0201"/>
+    <motor class="x2" name="thrust2" site="thrust2" gear="0 0 1 0 0 -.0201"/>
+    <motor class="x2" name="thrust3" site="thrust3" gear="0 0 1 0 0  .0201"/>
+    <motor class="x2" name="thrust4" site="thrust4" gear="0 0 1 0 0 -.0201"/>
+    <position name="plat_x_srv" joint="plat_x" kp="15000"/>
+    <position name="plat_y_srv" joint="plat_y" kp="15000"/>
+    <position name="plat_z_srv" joint="plat_z" kp="15000"/>
+    <position name="plat_yaw_srv" joint="plat_yaw" kp="5000"/>
+    <position name="plat_pitch_srv" joint="plat_pitch" kp="5000"/>
+    <position name="plat_roll_srv" joint="plat_roll" kp="5000"/>
+  </actuator>
+
+  <sensor>
+    <gyro name="body_gyro" site="imu"/>
+    <accelerometer name="body_linacc" site="imu"/>
+    <framequat name="body_quat" objtype="site" objname="imu"/>
+    <rangefinder name="altitude" site="rangefinder"/>
+  </sensor>
+
+  <keyframe>
+    <key name="hover" qpos="0 0 0 0 0 0 0 0 1.0 1 0 0 0"
+         ctrl="3.368 3.368 3.368 3.368 0 0 0 0 0 0"/>
+  </keyframe>
+</mujoco>

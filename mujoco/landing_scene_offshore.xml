@@ -1,0 +1,134 @@
+<mujoco model="quadrotor_offshore_landing">
+  <compiler angle="radian" coordinate="local" inertiafromgeom="true"/>
+  <option timestep="0.002" gravity="0 0 -9.81" integrator="RK4" cone="elliptic"/>
+  <visual>
+    <global offwidth="1280" offheight="720"/>
+  </visual>
+
+  <default>
+    <geom condim="4" friction="1.1 0.02 0.001" solref="0.008 1" solimp="0.95 0.99 0.001"/>
+    <joint damping="0.02"/>
+  </default>
+
+  <asset>
+    <!-- Bright daytime offshore sky -->
+    <texture type="skybox" builtin="gradient" rgb1="0.84 0.93 1.0" rgb2="0.44 0.70 0.92"
+             width="512" height="3072"/>
+    <!-- Ocean surface texture -->
+    <texture name="sea" type="2d" builtin="checker" mark="none" width="512" height="512"
+             rgb1="0.24 0.52 0.70" rgb2="0.14 0.35 0.58"/>
+    <material name="sea_surface" texture="sea" texrepeat="8 8" reflectance="0.20"/>
+    <material name="carbon" rgba="0.04 0.05 0.06 1"/>
+    <material name="rotor" rgba="0.08 0.10 0.13 0.55"/>
+    <material name="platform_green" rgba="0.05 0.45 0.31 1"/>
+    <material name="landing_mark" rgba="1.0 0.82 0.16 1"/>
+    <!-- OSV colors: blue hull, white superstructure, navy trim -->
+    <material name="osv_blue" rgba="0.05 0.24 0.62 1" reflectance="0.12"/>
+    <material name="osv_white" rgba="0.96 0.97 0.98 1"/>
+    <material name="osv_dark" rgba="0.03 0.08 0.18 1"/>
+    <material name="invisible" rgba="0 0 0 0"/>
+  </asset>
+
+  <worldbody>
+    <light name="ambient" pos="0 0 10" dir="0 0 -1" diffuse="0.95 0.97 1.0"
+            ambient="0.78 0.82 0.90" specular="0.12 0.14 0.18"/>
+    <light name="key" pos="0 -4 7" dir="0 0 -1" diffuse="1.0 1.0 1.0"
+            ambient="0.42 0.45 0.52" specular="0.22 0.24 0.28"/>
+    <light name="fill" pos="-4 3 5" dir="0 0 -1" diffuse="0.82 0.87 0.96"
+            ambient="0.48 0.52 0.62" specular="0.10 0.12 0.16"/>
+    <!-- Additional soft fill zones around the vessel -->
+    <light name="front_fill" pos="0 -6 5" dir="0 0 -1" diffuse="0.45 0.55 0.75"
+            ambient="0.22 0.26 0.34" specular="0.05 0.06 0.08" castshadow="false"/>
+    <light name="rear_fill" pos="0 6 5" dir="0 0 -1" diffuse="0.40 0.50 0.70"
+            ambient="0.20 0.24 0.32" specular="0.04 0.05 0.07" castshadow="false"/>
+    <light name="left_fill" pos="-6 0 4.5" dir="0 0 -1" diffuse="0.42 0.52 0.72"
+            ambient="0.20 0.24 0.32" specular="0.04 0.05 0.07" castshadow="false"/>
+    <light name="right_fill" pos="6 0 4.5" dir="0 0 -1" diffuse="0.42 0.52 0.72"
+            ambient="0.20 0.24 0.32" specular="0.04 0.05 0.07" castshadow="false"/>
+    <!-- Sea surface at z = -0.5 to show vessel floating -->
+    <geom name="ground" type="plane" pos="0 0 -0.5" size="12 12 0.1" material="sea_surface"/>
+
+    <!-- Offshore vessel with helideck at the original position (0, 0, 0.06) -->
+    <body name="platform" mocap="true" pos="0 0 0.06">
+      <!-- Main helideck (landing surface) - SAME mass, position and friction as original -->
+      <geom name="platform_deck" type="box" size="0.8 0.8 0.06" material="platform_green"
+            mass="100" contype="1" conaffinity="1" friction="5.0 0.25 0.05"/>
+      <geom name="platform_marker_x" type="box" size="0.55 0.025 0.006" pos="0 0 0.067"
+            material="landing_mark" mass="0.1" contype="0" conaffinity="0"/>
+      <geom name="platform_marker_y" type="box" size="0.025 0.55 0.006" pos="0 0 0.074"
+            material="landing_mark" mass="0.1" contype="0" conaffinity="0"/>
+      <site name="landing_center" pos="0 0 0.09" size="0.04" rgba="1 0.9 0.1 1"/>
+
+      <!-- Offshore vessel hull (carefully balanced to match original platform inertia) -->
+      <geom name="hull_main" type="box" size="1.5 0.85 0.25" pos="0.7 0 -0.31"
+            material="osv_blue" mass="0.15" contype="0" conaffinity="0"/>
+      <geom name="hull_bow" type="box" size="0.6 0.7 0.20" pos="-1.2 0 -0.26"
+            material="osv_blue" mass="0.65" contype="1" conaffinity="1"/>
+      <geom name="hull_belt" type="box" size="1.52 0.87 0.04" pos="0.7 0 -0.09"
+            material="osv_dark" mass="0.05" contype="0" conaffinity="0"/>
+      <geom name="wheelhouse_base" type="box" size="0.5 0.65 0.05" pos="1.8 0 0.05"
+            material="osv_blue" mass="0.05" contype="1" conaffinity="1"/>
+      <geom name="wheelhouse" type="box" size="0.45 0.58 0.35" pos="1.8 0 0.47"
+            material="osv_white" mass="0.05" contype="1" conaffinity="1"/>
+      <geom name="wheelhouse_windows" type="box" size="0.38 0.59 0.10" pos="1.8 0 0.52"
+            material="osv_dark" mass="0.01" contype="0" conaffinity="0"/>
+      <geom name="mast" type="cylinder" size="0.025 0.40" pos="1.8 0 1.0"
+            material="osv_dark" mass="0.01" contype="0" conaffinity="0"/>
+    </body>
+
+    <!-- Quadrotor (same as original) -->
+    <body name="quadrotor" pos="0 0 3.0" quat="1 0 0 0">
+      <freejoint name="quad_free"/>
+      <inertial pos="0 0 0" mass="1.25" diaginertia="0.022 0.022 0.040"/>
+
+      <geom name="quad_body" type="box" size="0.16 0.12 0.045" material="carbon"
+            mass="0.75" contype="1" conaffinity="1"/>
+      <geom name="arm_fl" type="capsule" fromto="0.05 0.05 0 0.32 0.32 0.02" size="0.018"
+            material="carbon" mass="0.05" contype="0" conaffinity="0"/>
+      <geom name="arm_fr" type="capsule" fromto="0.05 -0.05 0 0.32 -0.32 0.02" size="0.018"
+            material="carbon" mass="0.05" contype="0" conaffinity="0"/>
+      <geom name="arm_rl" type="capsule" fromto="-0.05 0.05 0 -0.32 0.32 0.02" size="0.018"
+            material="carbon" mass="0.05" contype="0" conaffinity="0"/>
+      <geom name="arm_rr" type="capsule" fromto="-0.05 -0.05 0 -0.32 -0.32 0.02" size="0.018"
+            material="carbon" mass="0.05" contype="0" conaffinity="0"/>
+
+      <geom name="rotor_fl" type="cylinder" pos="0.32 0.32 0.02" size="0.13 0.006"
+            material="rotor" mass="0.025" contype="0" conaffinity="0"/>
+      <geom name="rotor_fr" type="cylinder" pos="0.32 -0.32 0.02" size="0.13 0.006"
+            material="rotor" mass="0.025" contype="0" conaffinity="0"/>
+      <geom name="rotor_rl" type="cylinder" pos="-0.32 0.32 0.02" size="0.13 0.006"
+            material="rotor" mass="0.025" contype="0" conaffinity="0"/>
+      <geom name="rotor_rr" type="cylinder" pos="-0.32 -0.32 0.02" size="0.13 0.006"
+            material="rotor" mass="0.025" contype="0" conaffinity="0"/>
+
+      <site name="motor_fl" pos="0.32 0.32 0.02" size="0.025" rgba="0.2 0.6 1 1"/>
+      <site name="motor_fr" pos="0.32 -0.32 0.02" size="0.025" rgba="0.2 0.6 1 1"/>
+      <site name="motor_rl" pos="-0.32 0.32 0.02" size="0.025" rgba="0.2 0.6 1 1"/>
+      <site name="motor_rr" pos="-0.32 -0.32 0.02" size="0.025" rgba="0.2 0.6 1 1"/>
+
+      <geom name="leg_fl" type="capsule" fromto="0.18 0.18 -0.03 0.29 0.29 -0.36"
+            size="0.014" mass="0.03" contype="1" conaffinity="1"/>
+      <geom name="leg_fr" type="capsule" fromto="0.18 -0.18 -0.03 0.29 -0.29 -0.36"
+            size="0.014" mass="0.03" contype="1" conaffinity="1"/>
+      <geom name="leg_rl" type="capsule" fromto="-0.18 0.18 -0.03 -0.29 0.29 -0.36"
+            size="0.014" mass="0.03" contype="1" conaffinity="1"/>
+      <geom name="leg_rr" type="capsule" fromto="-0.18 -0.18 -0.03 -0.29 -0.29 -0.36"
+            size="0.014" mass="0.03" contype="1" conaffinity="1"/>
+      <geom name="foot_fl" type="box" pos="0.29 0.29 -0.36" size="0.06 0.06 0.012"
+            mass="0.015" contype="1" conaffinity="1" friction="5.5 0.30 0.08"/>
+      <geom name="foot_fr" type="box" pos="0.29 -0.29 -0.36" size="0.06 0.06 0.012"
+            mass="0.015" contype="1" conaffinity="1" friction="5.5 0.30 0.08"/>
+      <geom name="foot_rl" type="box" pos="-0.29 0.29 -0.36" size="0.06 0.06 0.012"
+            mass="0.015" contype="1" conaffinity="1" friction="5.5 0.30 0.08"/>
+      <geom name="foot_rr" type="box" pos="-0.29 -0.29 -0.36" size="0.06 0.06 0.012"
+            mass="0.015" contype="1" conaffinity="1" friction="5.5 0.30 0.08"/>
+      <geom name="skid_left" type="box" pos="0 0.29 -0.385" size="0.36 0.035 0.014"
+            mass="0.04" contype="1" conaffinity="1" friction="6.0 0.35 0.10"/>
+      <geom name="skid_right" type="box" pos="0 -0.29 -0.385" size="0.36 0.035 0.014"
+            mass="0.04" contype="1" conaffinity="1" friction="6.0 0.35 0.10"/>
+      <site name="downward_camera_mount" pos="0 0 -0.08" size="0.025" rgba="1 0.8 0.1 1"/>
+      <camera name="downward" mode="fixed" pos="0 0 -0.08" fovy="85"/>
+      <camera name="tracking" mode="trackcom" pos="-4 -5 3" xyaxes="0.78 -0.63 0 0.28 0.35 0.89"/>
+    </body>
+  </worldbody>
+</mujoco>

@@ -1,0 +1,170 @@
+<mujoco model="x2_landing_ship">
+  <!-- Maritime landing scenario: the same validated Skydio X2 (with landing gear, downward gimbal
+       camera, rangefinder) descending onto a SHIP DECK that moves with full 6-DOF seakeeping motion
+       (surge/sway + heave + roll/pitch/yaw). The deck body adds three DOFs over the ground rover:
+       plat_z (heave), plat_roll, plat_pitch. Its prescribed wave-driven trajectory is set each step
+       by drone_landing.sim.platforms.ShipDeckMotion. Buoyancy is modeled as gravity compensation
+       (gravcomp="1") on the deck body so the heavy hull's weight is supported by the sea and the
+       position servos only have to track the wave-induced oscillation. The drone-deck contact is
+       still TRUE physics (no cheats); see docs/REALISM_CHARTER.md. -->
+  <compiler autolimits="true" assetdir="../meshes/skydio_x2"/>
+  <option timestep="0.002" density="1.225" viscosity="1.8e-5" integrator="implicitfast"/>
+  <visual>
+    <global offwidth="1280" offheight="720"/>
+  </visual>
+
+  <default>
+    <default class="x2">
+      <geom mass="0"/>
+      <motor ctrlrange="0 13"/>
+      <mesh scale="0.01 0.01 0.01"/>
+      <default class="visual">
+        <geom group="2" type="mesh" contype="0" conaffinity="0"/>
+      </default>
+      <default class="collision">
+        <geom group="3" type="box"/>
+        <default class="rotor">
+          <geom type="ellipsoid" size=".13 .13 .01"/>
+        </default>
+      </default>
+      <site group="5"/>
+    </default>
+    <!-- Landing gear: light, frictional, collidable. -->
+    <default class="leg">
+      <geom type="capsule" size="0.006" mass="0.008" rgba="0.05 0.05 0.05 1"
+            contype="1" conaffinity="1" condim="4" friction="1.2 0.05 0.001"
+            solref="0.02 1.5" solimp="0.95 0.99 0.001"/>
+    </default>
+    <!-- Feet: shock-absorbing (overdamped) contact so touchdown doesn't bounce, like compliant gear. -->
+    <default class="foot">
+      <geom type="sphere" size="0.013" mass="0.004" rgba="0.05 0.05 0.05 1"
+            contype="1" conaffinity="1" condim="4" friction="3.0 0.15 0.003"
+            solref="0.025 1.8" solimp="0.96 0.99 0.001"/>
+    </default>
+  </default>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.45 0.6 0.78" rgb2="0.05 0.1 0.2" width="512" height="3072"/>
+    <!-- Sea surface: a darker blue checker so deck motion is visible against the water. -->
+    <texture type="2d" name="sea" builtin="checker" mark="none" rgb1="0.08 0.18 0.30"
+             rgb2="0.05 0.12 0.22" width="300" height="300"/>
+    <material name="sea" texture="sea" texuniform="true" texrepeat="8 8" reflectance="0.35"/>
+    <!-- X2 visual assets (copied from MuJoCo Menagerie skydio_x2). -->
+    <texture type="2d" file="X2_lowpoly_texture_SpinningProps_1024.png"/>
+    <material name="phong3SG" texture="X2_lowpoly_texture_SpinningProps_1024"/>
+    <material name="invisible" rgba="0 0 0 0"/>
+    <mesh class="x2" file="X2_lowpoly.obj"/>
+    <!-- Deck with ArUco fiducial (DICT_4X4_50 id 0, 0.36 m). Texture by scripts/gen_aruco_deck.py. -->
+    <texture name="aruco_deck" type="2d" file="../../textures/aruco_deck.png"/>
+    <material name="deck_aruco" texture="aruco_deck" texuniform="false" texrepeat="1 1"/>
+    <material name="hull" rgba="0.30 0.32 0.36 1"/>
+  </asset>
+
+  <worldbody>
+    <!-- Diffuse, shadow-free lighting so rotor shadows don't wash out the deck fiducial. -->
+    <light pos="0 0 4" dir="0 0 -1" directional="true" diffuse="0.8 0.8 0.8"
+           ambient="0.4 0.4 0.4" castshadow="false"/>
+    <light pos="2 -2 3" dir="-0.5 0.5 -1" diffuse="0.3 0.3 0.3" castshadow="false"/>
+    <geom name="floor" size="0 0 0.05" type="plane" material="sea"/>
+
+    <!-- Ship deck: a DYNAMIC body driven by position servos on six joints — slide(x,y,z) +
+         hinge(yaw,roll,pitch) — so it carries true contact velocity (friction drags a landed drone
+         with the heaving/rolling deck) and is heavy (65 kg) so the drone is a negligible disturbance.
+         gravcomp="1" models buoyancy: the sea supports the hull's weight, leaving the servos to track
+         only the wave oscillation. The roll/pitch hinges pivot at the body origin (near the
+         waterline, below the deck), as a real hull rolls about a point beneath its deck. Deck top is
+         at z=0.30 at zero heave; ShipDeckMotion supplies the heave/roll/pitch about that mean. -->
+    <body name="platform" pos="0 0 0" gravcomp="1">
+      <joint name="plat_x" type="slide" axis="1 0 0" damping="2000"/>
+      <joint name="plat_y" type="slide" axis="0 1 0" damping="2000"/>
+      <joint name="plat_z" type="slide" axis="0 0 1" damping="2000"/>
+      <joint name="plat_yaw" type="hinge" axis="0 0 1" damping="400"/>
+      <joint name="plat_pitch" type="hinge" axis="0 1 0" damping="400"/>
+      <joint name="plat_roll" type="hinge" axis="1 0 0" damping="400"/>
+      <geom name="chassis" type="box" size="0.9 0.9 0.125" pos="0 0 0.125" mass="60"
+            material="hull" contype="0" conaffinity="0"/>
+      <!-- Large flight deck (1.8 m, the collision surface; world.py keys touchdown on this geom). -->
+      <geom name="deck" type="box" size="0.9 0.9 0.025" pos="0 0 0.275" mass="5"
+            material="hull" contype="1" conaffinity="1" condim="4" friction="3.0 0.1 0.002"
+            solref="0.02 1.5" solimp="0.96 0.99 0.001"/>
+      <!-- ArUco fiducial pad (visual only): kept at 1.0 m = BoardSpec.deck_size so the markers stay at
+           their calibrated physical size regardless of deck size -> perception unchanged. -->
+      <geom name="fiducial" type="box" size="0.5 0.5 0.001" pos="0 0 0.301"
+            material="deck_aruco" contype="0" conaffinity="0"/>
+      <site name="deck_center" pos="0 0 0.303" size="0.02" rgba="1 0.85 0.1 1" group="4"/>
+    </body>
+
+    <!-- Stabilized-gimbal camera: a kinematic body held at the drone's belly but always world-level
+         (nadir), so the downward camera looks straight down regardless of drone tilt. The world code
+         sets its mocap pose each step. This keeps the deck fiducial in view during maneuvers. -->
+    <body name="gimbal" mocap="true" pos="0 0 0.91">
+      <camera name="down" pos="0 0 0" fovy="90" mode="fixed"/>
+    </body>
+
+    <!-- Quadrotor: Skydio X2 body (validated) + landing gear + rangefinder. -->
+    <body name="x2" pos="0 0 1.0" childclass="x2">
+      <freejoint name="root"/>
+      <camera name="track" pos="-1 0 .5" xyaxes="0 -1 0 1 0 2" mode="trackcom"/>
+      <site name="imu" pos="0 0 .02"/>
+      <site name="rangefinder" pos="0 0 -.03" quat="0 1 0 0" size="0.005" group="5"/>
+
+      <geom material="phong3SG" mesh="X2_lowpoly" class="visual" quat="0 0 1 1"/>
+      <geom class="collision" size=".06 .027 .02" pos=".04 0 .02"/>
+      <geom class="collision" size=".06 .027 .02" pos=".04 0 .06"/>
+      <geom class="collision" size=".05 .027 .02" pos="-.07 0 .065"/>
+      <geom class="collision" size=".023 .017 .01" pos="-.137 .008 .065" quat="1 0 0 1"/>
+
+      <geom name="rotor1" class="rotor" pos="-.14 -.18 .05" mass=".25"/>
+      <geom name="rotor2" class="rotor" pos="-.14 .18 .05" mass=".25"/>
+      <geom name="rotor3" class="rotor" pos=".14 .18 .08" mass=".25"/>
+      <geom name="rotor4" class="rotor" pos=".14 -.18 .08" mass=".25"/>
+      <geom size=".16 .04 .02" pos="0 0 0.02" type="ellipsoid" mass=".325" class="visual" material="invisible"/>
+
+      <site name="thrust1" pos="-.14 -.18 .05"/>
+      <site name="thrust2" pos="-.14 .18 .05"/>
+      <site name="thrust3" pos=".14 .18 .08"/>
+      <site name="thrust4" pos=".14 -.18 .08"/>
+
+      <!-- Landing gear (4 legs + feet), inside the rotor footprint. -->
+      <geom class="leg" name="leg_fl" fromto=".06 .06 -.01 .10 .12 -.13"/>
+      <geom class="leg" name="leg_fr" fromto=".06 -.06 -.01 .10 -.12 -.13"/>
+      <geom class="leg" name="leg_rl" fromto="-.06 .06 -.01 -.10 .12 -.13"/>
+      <geom class="leg" name="leg_rr" fromto="-.06 -.06 -.01 -.10 -.12 -.13"/>
+      <geom class="foot" name="foot_fl" pos=".10 .12 -.13"/>
+      <geom class="foot" name="foot_fr" pos=".10 -.12 -.13"/>
+      <geom class="foot" name="foot_rl" pos="-.10 .12 -.13"/>
+      <geom class="foot" name="foot_rr" pos="-.10 -.12 -.13"/>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <!-- Corrected quad-X reaction-torque signs (diagonal rotors share a spin direction): full-rank
+         control allocation (cond ~50), net hover yaw torque = 0. See the ground world for details. -->
+    <motor class="x2" name="thrust1" site="thrust1" gear="0 0 1 0 0  .0201"/>
+    <motor class="x2" name="thrust2" site="thrust2" gear="0 0 1 0 0 -.0201"/>
+    <motor class="x2" name="thrust3" site="thrust3" gear="0 0 1 0 0  .0201"/>
+    <motor class="x2" name="thrust4" site="thrust4" gear="0 0 1 0 0 -.0201"/>
+    <!-- Deck seakeeping servos (position-controlled; heavy body tracks the prescribed 6-DOF path).
+         Heave uses a stiff servo; roll/pitch/yaw use softer rotational servos. -->
+    <position name="plat_x_srv" joint="plat_x" kp="15000"/>
+    <position name="plat_y_srv" joint="plat_y" kp="15000"/>
+    <position name="plat_z_srv" joint="plat_z" kp="15000"/>
+    <position name="plat_yaw_srv" joint="plat_yaw" kp="5000"/>
+    <position name="plat_pitch_srv" joint="plat_pitch" kp="5000"/>
+    <position name="plat_roll_srv" joint="plat_roll" kp="5000"/>
+  </actuator>
+
+  <sensor>
+    <gyro name="body_gyro" site="imu"/>
+    <accelerometer name="body_linacc" site="imu"/>
+    <framequat name="body_quat" objtype="site" objname="imu"/>
+    <rangefinder name="altitude" site="rangefinder"/>
+  </sensor>
+
+  <keyframe>
+    <!-- qpos = [plat_x, plat_y, plat_z, plat_yaw, plat_pitch, plat_roll, drone_xyz, drone_quat];
+         ctrl = [4 thrusts, 6 deck servos]. Hover thrust ~3.368 N/motor (drone mass ~1.373 kg). -->
+    <key name="hover" qpos="0 0 0 0 0 0 0 0 1.0 1 0 0 0"
+         ctrl="3.368 3.368 3.368 3.368 0 0 0 0 0 0"/>
+  </keyframe>
+</mujoco>
